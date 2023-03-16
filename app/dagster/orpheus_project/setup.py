@@ -6,7 +6,8 @@ setup(
     install_requires=[
         "dagster",
         "spotipy",
-        "pandas"
+        "pandas",
+        "minio"
     ],
     extras_require={"dev": ["dagit", "pytest"]},
 )
