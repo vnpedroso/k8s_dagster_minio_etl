@@ -1,9 +1,12 @@
+
+import spotipy
+from minio import Minio
+from minio.error import S3Error
 from contextlib import contextmanager
 from dagster import resource
 from os import getenv
 from dotenv import load_dotenv
 from spotipy.oauth2 import SpotifyOAuth 
-import spotipy
 
 @resource(
 	description='all the permission strings that define spotify connection scope'
@@ -39,3 +42,23 @@ def get_conn_recent_history(init_context):
     finally:
         for i in [SPOTIPY_CLIENT_ID,SPOTIPY_CLIENT_SECRET,SPOTIPY_REDIRECT_URI]: 
             del i
+
+@resource(
+    description='connection to minio s3 buckets'
+)
+@contextmanager
+def get_minio_conn(init_context):
+    try:
+        # loading .env file variables
+        load_dotenv()
+        minio_conn = Minio(
+            endpoint=getenv("MINIO_ENDPOINT"),
+            access_key=getenv("MINIO_ACCESS_KEY"),
+            secret_key=getenv("MINIO_SECRET_KEY"),
+            secure=False #needed to use HTTP instead of HTTPS, since we don't have a TLS certificated
+        )
+        yield minio_conn
+    except S3Error as excep:
+        print("error occurred. ", excep)
+    finally:
+        del minio_conn

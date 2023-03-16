@@ -1,4 +1,7 @@
 
+
+import os
+import pandas as pd
 from dagster import (
 	asset,
 	Output,
@@ -7,8 +10,8 @@ from dagster import (
     file_relative_path
 )
 from datetime import datetime, timezone
-import pandas as pd
-import os
+from io import BytesIO
+
 
 
 # Retry policy with delay in seconds
@@ -18,7 +21,7 @@ freshness_policy = FreshnessPolicy(maximum_lag_minutes=180)
 
 #decorator that defines a software defined asset function
 @asset(
-    group_name='sources',
+    group_name='orpheus_pipeline',
     retry_policy=retry_policy,
 	freshness_policy=freshness_policy,
 	required_resource_keys={"get_conn_recent_history"} #resource key required for this asset
@@ -77,7 +80,7 @@ def extract_most_recent_50_songs(context,api_conn_recent_history_scope) -> Outpu
     retry_policy=retry_policy,
 	freshness_policy=freshness_policy
 )
-def most_recent_50_songs_list_to_df(context,extract_most_recent_50_songs) -> Output[pd.DataFrame]:
+def transform_song_list_to_df(context,extract_most_recent_50_songs) -> Output[pd.DataFrame]:
     '''
     transforming the extract list of tuples into a dataFrame
     '''
@@ -89,19 +92,20 @@ def most_recent_50_songs_list_to_df(context,extract_most_recent_50_songs) -> Out
     return Output(df)
 
 @asset(
-    group_name='destinations',
+    group_name='orpheus_pipeline',
     retry_policy=retry_policy,
     freshness_policy=freshness_policy
 )
-def local_destination_csv(context,most_recent_50_songs_list_to_df) -> None:
+def load_csv_local_dest(context,transform_song_list_to_df) -> None:
     '''
-    writing the dataFrame with the songs into a local csv file
+    writing the dataFrame with the songs into csv file
     '''
-    final_df = most_recent_50_songs_list_to_df
+
     csv_filepath = file_relative_path(
         __file__,
-        '../local_destination/dest_orpheus_pipeline.csv')
-    final_df.to_csv(csv_filepath)
+        '../local_destination/dest_orpheus_pipeline.csv'
+    )
+    transform_song_list_to_df.to_csv(csv_filepath)
 
     file_stats = os.stat(csv_filepath)
     csv_last_modification_date = datetime.fromtimestamp(
@@ -113,4 +117,27 @@ def local_destination_csv(context,most_recent_50_songs_list_to_df) -> None:
     last modification on csv content (utc time): {csv_last_modification_date}
     ''')
 
-    
+@asset(
+    group_name='orpheus_pipeline',
+    retry_policy=retry_policy,
+    freshness_policy=freshness_policy,
+    required_resource_keys={"get_minio_conn"}
+)
+def load_csv_s3_dest(context, transform_song_list_to_df) -> None:
+    '''
+    '''
+    minio_client = context.resources.get_minio_conn
+    dest_bucket = os.getenv("S3_DESTINATION_BUCKET")
+    csv_bytes = transform_song_list_to_df.to_csv().encode('utf-8')
+    csv_buffer = BytesIO(csv_bytes)
+
+    if minio_client.bucket_exists(dest_bucket) == True:
+        minio_client.put_object(
+            dest_bucket,
+            "dest_orpheus_pipeline.csv",
+            data=csv_buffer,
+            length=len(csv_bytes),
+            content_type='application/csv'
+        )
+    else:
+        raise Exception(f'{dest_bucket} DOES NOT EXISTS')   
