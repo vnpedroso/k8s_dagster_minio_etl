@@ -43,12 +43,12 @@ load_dotenv()
 if getenv("DEPLOY_MODE") == "LOCAL":
     defs = Definitions(
         assets=local_assets,
-        resources=required_resources
+        resources=local_resources
     )
 elif getenv("DEPLOY_MODE") == "K8S":
     defs = Definitions(
         assets=k8s_assets,
-        resources=required_resources
+        resources=k8s_resources
     )    
 else:
     raise ValueError("DEPLOY_MODE env variable either is not set or has the wrong value")
