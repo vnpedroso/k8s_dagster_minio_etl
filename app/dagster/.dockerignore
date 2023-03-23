@@ -1,0 +1,6 @@
+orpheus_project/local_destination/
+orpheus_project/setup.cfg
+orpheus_project/setup.py
+orpheus_project/pyproject.toml
+orpheus_project/orpheus_project.egg-info/
+orpheus_project/.cache
