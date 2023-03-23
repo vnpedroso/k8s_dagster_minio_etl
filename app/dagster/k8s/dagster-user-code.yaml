@@ -1,0 +1,23 @@
+imagePullSecrets:
+  - name: registry-access-key
+deployments:
+  - name: "orpheus-project"
+    image:
+      repository: "docker.io/vnpedroso/orpheus-project"
+      tag: "1.0"
+      pullPolicy: "Always"
+    dagsterApiGrpcArgs:
+      - "-m"
+      - "orpheus_project"
+    port: 3030
+    env: 
+      DEPLOY_MODE: LOCAL
+    envSecrets:
+      - name: spotify-secret
+#    resources:
+#      requests:
+#        cpu: "250m"
+#        memory: "500Mi"
+#      limits:
+#        cpu: "250m"
+#        memory: "500Mi"
