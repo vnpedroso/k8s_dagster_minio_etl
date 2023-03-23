@@ -1,0 +1,12 @@
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: dagster-workspace-config
+data:
+  workspace.yaml: |
+    load_from:
+      - grpc_server:
+          location_name: "orpheus-project"
+          host: "orpheus-project"
+          port: 3030
